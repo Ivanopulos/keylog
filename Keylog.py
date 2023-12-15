@@ -25,8 +25,17 @@ def load_keyboard_layout(layout):
     if "Microsoft Word" not in buff.value:
         user32.PostMessageW(hwnd, WM_INPUTLANGCHANGEREQUEST, 0, layout_handle)
 def print_pressed_keys(e):
-    global pred  # памятка о предыдущем событии
+    global pred  # памятка о предыдущем событии нажатия
     global rdy  # счетчик нажатий
+
+    global svst  # пул для разбитых вставок
+    global svst1  # счетчик юза разбитых вставок
+    global svval # словарь разб вставок
+    global svms  # метка статуса
+    try:
+        _ = svms
+    except NameError:
+        svms = 0
     print(e, e.event_type, e.name)  # KeyboardEvent(right alt down) down right altаhhаараf
     if rdy == 2 and e.name in d:
         if str(d.get(e.name))[0] == "-":  # проверка вызова доп опций вместо ввода
@@ -41,25 +50,42 @@ def print_pressed_keys(e):
                 m = pyperclip.paste()
                 m = m.translate(trans_table)
                 pyperclip.copy(m)
+            if str(d.get(e.name)) == '-каскадвставка':  # съедение на вставку
+                svst = pyperclip.paste()
+                if not svst == "":
+                    svst1 = 0
+                    svval = svst.split('\n')
+                    pyperclip.copy(svval[svst1])
+                    if len(svval) > 1:
+                        svms = 5
+                    print("съедено")
         else:  # просто ввод
             keyboard.press_and_release('backspace')
             keyboard.write(d.get(e.name))
         rdy = 0
+    if e.name == "insert" and svms == 5 and e.event_type == "down" and pred.name == "right shift":# ловим разб вставку для чередования
+        svst1 = svst1+1
+        if len(svval) <= svst1-1:
+            svst1 = 0
+        pyperclip.copy(svval[svst1])
+    if e.name == "insert" and e.event_type == "down" and pred.name == "right ctrl":  # ловим разб вставку для чередования
+        svms = 0
     if e.event_type == "up" and (e.name == knopnadopt1 or e.name == knopnadopt2) and rdy == 1:  # контроль нажатия команды
         rdy = 2
     else:
         rdy = 0
     if e.event_type == "down" and (e.name == knopnadopt1 or e.name == knopnadopt2):
         rdy = 1
-    if e.event_type == "up" and pred.name == "right ctrl":#and e.name == "insert"
-        keyboard.send('ctrl+c')
-        print("found")
+    #if e.event_type == "up" and pred.name == "right ctrl":#and e.name == "insert"
+    #    keyboard.send('ctrl+c')
+    #    print("found")
+
     pred = e
 rdy = 0
 # словарь функций и спец
 d = {'1': "'", '2': '"', '3': "#", '4': ";", '5': "$", '6': ":", '7': "&", "р": "-рус", "h": "-рус", "f": "-англ",
-     "а": "-англ", 'э': "'", "'": "'", 'ю': ">", '.': ">", 'б': "<", ',': "<", '/': ",", 'х': "[]", '[': "[]", 'ъ': "]",
-     '`': "-замена", 'ё': "-замена"}
+     "а": "-англ", 'э': "'", "'": "'", 'ю': ">", '.': ">", 'б': "<", ',': "<", '/': ",", 'х': "[", '[': "[", 'ъ': "]",
+     ']': "]", '`': "-замена", 'ё': "-замена", 'right ctrl': '-каскадвставка'}
 # словарь неправильного алфавита
 alf = {'q': "й", 'w': "ц", 'e': "у", 'r': "к", 't': "е", 'y': "н", 'u': "г", 'i': "ш", 'o': "щ", 'p': "з", '[': "х",
        ']': "ъ", 'a': "ф", 's': "ы", 'd': "в", 'f': "а", 'g': "п", 'h': "р", 'j': "о", 'k': "л", 'l': "д", ';': "ж",
@@ -71,7 +97,7 @@ trans_table = str.maketrans(alf)  # Создание таблицы перево
 RUSSIAN_LAYOUT = '00000419'
 ENGLISH_LAYOUT = '00000409'
 LAYOUT_HANDLES = {}
-knopnadopt1 = "right shift"  # right alt
+knopnadopt1 = "right shift"  # right alt Задвоение по случаю разных назывний в разных раскладках
 knopnadopt2 = "right shift"  # alt gr
 keyboard.hook(print_pressed_keys)  # KeyboardEvent(down up) up down
 keyboard.wait()
